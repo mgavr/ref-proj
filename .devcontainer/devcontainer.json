@@ -1,0 +1,80 @@
+{
+  "name": "ref-proj",
+
+  // Microsoft-maintained Node 22 image on Debian Bookworm. Bookworm's
+  // OpenSSL 3 is the build target Prisma ships engine binaries for, so
+  // `prisma generate` just works.
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
+
+  // Features add capabilities to the base image. Order matters; postgres
+  // expects systemd-ish init which the docker-in-docker feature provides.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Run after the container is first created (not on every restart).
+  // We install pnpm globally and seed it with the same version pinned in
+  // package.json's `packageManager` field.
+  "onCreateCommand": "npm install -g pnpm@9.15.9",
+
+  // Run after onCreateCommand and after the workspace is mounted.
+  // - pnpm install resolves the workspace
+  // - copy .env.example to .env so the API can boot
+  // - We DO NOT run prisma generate or db:migrate here \u2014 Postgres
+  //   isn't running yet at this point; the user runs `pnpm db:up &&
+  //   pnpm db:migrate` after the Codespace is ready.
+  "postCreateCommand": "pnpm install && cp -n apps/api/.env.example apps/api/.env || true",
+
+  // Welcome message shown each time the user attaches to the Codespace.
+  "postAttachCommand": {
+    "welcome": "echo '' && echo 'ref-proj Codespace ready.' && echo '' && echo 'First time only:' && echo '  pnpm db:up' && echo '  pnpm db:migrate:new init    # creates the initial migration' && echo '  pnpm db:seed' && echo '' && echo 'Every session:' && echo '  pnpm db:up' && echo '  pnpm --filter @refproj/api dev' && echo ''"
+  },
+
+  // Ports automatically forwarded by Codespaces. The labels show up in
+  // the Ports panel.
+  "forwardPorts": [3000, 3001, 5432, 8081, 19000, 19006],
+  "portsAttributes": {
+    "3000": { "label": "API (NestJS)", "onAutoForward": "notify" },
+    "3001": { "label": "Web (Next.js)", "onAutoForward": "notify" },
+    "5432": { "label": "Postgres", "onAutoForward": "silent" },
+    "8081": { "label": "Expo Metro bundler", "onAutoForward": "silent" },
+    "19000": { "label": "Expo dev server", "onAutoForward": "silent" },
+    "19006": { "label": "Expo web", "onAutoForward": "silent" }
+  },
+
+  // VS Code customizations applied inside the Codespace.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Prisma.prisma",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "expo.vscode-expo-tools",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "editor.formatOnSave": false,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "[prisma]": {
+          "editor.defaultFormatter": "Prisma.prisma"
+        }
+      }
+    }
+  },
+
+  // Run as a non-root user so file ownership matches a normal dev setup.
+  "remoteUser": "node",
+
+  // Larger machine recommendation. Codespaces lets the user override at
+  // launch; this is just a hint.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  }
+}
