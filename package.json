@@ -13,7 +13,14 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean && rm -rf node_modules .turbo"
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "db:up": "docker compose -f infra/docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.dev.yml down",
+    "db:reset": "docker compose -f infra/docker-compose.dev.yml down -v",
+    "db:migrate": "pnpm --filter @refproj/api db:migrate",
+    "db:migrate:new": "pnpm --filter @refproj/api db:migrate:new",
+    "db:seed": "pnpm --filter @refproj/api db:seed",
+    "db:studio": "pnpm --filter @refproj/api db:studio"
   },
   "devDependencies": {
     "turbo": "2.3.3",

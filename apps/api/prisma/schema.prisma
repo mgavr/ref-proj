@@ -1,0 +1,87 @@
+// Data model for ref-proj, per SPEC.md §3.
+//
+// Three tables: users, identities, refresh_tokens.
+// All UUIDs generated server-side. All timestamps in UTC, stored as timestamptz.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [citext]
+}
+
+/// One row per user. Email is citext so we can compare case-insensitively
+/// without manual lowercasing on every query.
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  email       String   @unique @db.Citext
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  identities    Identity[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+/// One row per (user, provider) link. A user can link multiple providers
+/// later without schema changes. Unique on (provider, providerUserId) so
+/// the same Google account can't be linked to two users.
+model Identity {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  provider       AuthProvider
+  providerUserId String       @map("provider_user_id")
+  emailAtLink    String       @map("email_at_link")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("identities")
+}
+
+/// Refresh tokens with rotation + theft detection, per SPEC.md §3 and §4.3.
+///
+/// - id IS the refresh token's `jti` claim (the random part lives in tokenHash)
+/// - familyId is shared across all rotations descended from one login
+/// - parentId points to the token this one rotated from (null for the
+///   original login's refresh token)
+/// - replacedById is set when this token gets rotated; a request that
+///   presents an already-rotated token causes the WHOLE family to be revoked
+///
+/// We never store the refresh token's plaintext value, only its SHA-256 hash.
+model RefreshToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  familyId       String    @map("family_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz
+  replacedById   String?   @unique @map("replaced_by_id") @db.Uuid
+  userAgent      String?   @map("user_agent")
+  ip             String?   @db.Inet
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+enum AuthProvider {
+  google
+  facebook
+  github
+
+  @@map("auth_provider")
+}

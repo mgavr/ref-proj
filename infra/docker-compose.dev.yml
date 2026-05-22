@@ -1,0 +1,31 @@
+# Local development services for ref-proj.
+#
+# Usage:
+#   pnpm db:up     - start (detached)
+#   pnpm db:down   - stop, keep data
+#   pnpm db:reset  - stop and DELETE volumes (destroys data)
+#
+# The data volume `refproj_postgres_data` persists across restarts. Drop it
+# with `pnpm db:reset` if you ever want a clean Postgres.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: refproj-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: refproj
+      POSTGRES_PASSWORD: refproj_dev
+      POSTGRES_DB: refproj
+    ports:
+      - "5432:5432"
+    volumes:
+      - refproj_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U refproj -d refproj"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  refproj_postgres_data:
