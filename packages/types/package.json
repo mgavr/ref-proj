@@ -15,9 +15,14 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist .turbo"
+    "test": "tsc -p tsconfig.test.json && node --test 'dist-test/**/*.test.js'",
+    "clean": "rm -rf dist dist-test .turbo"
+  },
+  "dependencies": {
+    "zod": "3.24.1"
   },
   "devDependencies": {
+    "@types/node": "22.10.5",
     "typescript": "5.7.3"
   }
 }
