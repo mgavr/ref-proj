@@ -41,15 +41,19 @@ export class AuthController {
   // ---- Google web OAuth --------------------------------------------
 
   @Get('google/start')
-  startGoogle(@Res({ passthrough: false }) res: Response): void {
+  startGoogle(
+    @Req() req: Request,
+    @Res({ passthrough: false }) res: Response,
+  ): void {
     const state = this.tokens.randomString(16);
     const codeVerifier = this.tokens.randomString(32);
 
     // Stash state+verifier in a single short-lived cookie. We avoid a
     // server-side session store for this small piece of cross-redirect
-    // state \u2014 the cookie is httpOnly, scoped to /api/v1/auth, and
+    // state — the cookie is httpOnly, scoped to /api/v1/auth, and
     // expires in 10 minutes.
     setOAuthStateCookie({
+      req,
       res,
       env: this.env,
       value: `${state}.${codeVerifier}`,
@@ -70,7 +74,7 @@ export class AuthController {
     // Always clear the state cookie, success or failure.
     const stateCookie = (req as Request & { cookies?: Record<string, string> })
       .cookies?.[COOKIE_OAUTH_STATE];
-    clearOAuthStateCookie(res, this.env);
+    clearOAuthStateCookie(req, res, this.env);
 
     if (error) {
       this.logger.warn(`[google/callback] provider returned error: ${error}`);
@@ -110,6 +114,7 @@ export class AuthController {
     }
 
     setSessionCookies({
+      req,
       res,
       env: this.env,
       accessToken: session.accessToken,
@@ -137,6 +142,7 @@ export class AuthController {
 
     const session = await this.auth.rotateRefreshToken(cookie);
     setSessionCookies({
+      req,
       res,
       env: this.env,
       accessToken: session.accessToken,
@@ -156,7 +162,7 @@ export class AuthController {
     const cookie = (req as Request & { cookies?: Record<string, string> })
       .cookies?.[COOKIE_REFRESH];
     await this.auth.logout(cookie);
-    clearSessionCookies(res, this.env);
+    clearSessionCookies(req, res, this.env);
     res.status(HttpStatus.NO_CONTENT).send();
   }
 

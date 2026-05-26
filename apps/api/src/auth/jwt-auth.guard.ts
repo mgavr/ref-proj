@@ -39,8 +39,16 @@ export class JwtAuthGuard implements CanActivate {
     let payload;
     try {
       payload = await this.tokens.verifyAccessToken(token);
-    } catch {
-      throw unauthorized('Access token invalid or expired.', 'TOKEN_EXPIRED');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'unknown';
+      // jose throws specific error classes; check by name rather than
+      // depending on the class identity, which can vary across import
+      // styles.
+      const errName = err instanceof Error ? err.constructor.name : '';
+      if (errName === 'JWTExpired') {
+        throw unauthorized('Access token expired.', 'TOKEN_EXPIRED');
+      }
+      throw unauthorized(`Access token invalid: ${message}`, 'TOKEN_INVALID');
     }
 
     const user = await this.db.user.findUnique({ where: { id: payload.sub } });

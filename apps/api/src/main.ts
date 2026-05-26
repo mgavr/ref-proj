@@ -13,6 +13,12 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
+  // Trust the first reverse proxy in front of us (Codespaces tunnel,
+  // App Platform's load balancer, etc.). Without this Express ignores
+  // X-Forwarded-Proto and req.protocol stays as 'http' even when the
+  // browser is talking to the proxy over HTTPS.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // cookie-parser populates req.cookies. Used by JwtAuthGuard,
   // AuthController, and the OAuth state cookie machinery.
   app.use(cookieParser());
