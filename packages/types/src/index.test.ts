@@ -10,14 +10,14 @@ import {
 } from './index.js';
 
 describe('OAuthProvider', () => {
-  it('accepts the three configured providers', () => {
-    for (const p of ['google', 'facebook', 'github'] as const) {
-      assert.equal(OAuthProvider.parse(p), p);
-    }
+  it('accepts the configured provider', () => {
+    assert.equal(OAuthProvider.parse('google'), 'google');
   });
 
   it('rejects unknown providers', () => {
     assert.throws(() => OAuthProvider.parse('twitter'));
+    assert.throws(() => OAuthProvider.parse('facebook'));
+    assert.throws(() => OAuthProvider.parse('github'));
   });
 });
 
@@ -66,13 +66,14 @@ describe('UpdateUserRequest', () => {
   });
 });
 
-describe('MobileVerifyRequest discriminated union', () => {
+describe('MobileVerifyRequest (single provider)', () => {
   it('accepts google with idToken', () => {
     const parsed = MobileVerifyRequest.parse({
       provider: 'google',
       idToken: 'eyJhbGc...',
     });
     assert.equal(parsed.provider, 'google');
+    assert.equal(parsed.idToken, 'eyJhbGc...');
   });
 
   it('rejects google without idToken', () => {
@@ -81,21 +82,11 @@ describe('MobileVerifyRequest discriminated union', () => {
     );
   });
 
-  it('accepts github with code + verifier + redirectUri', () => {
-    const parsed = MobileVerifyRequest.parse({
-      provider: 'github',
-      code: 'abc',
-      codeVerifier: 'xyz',
-      redirectUri: 'refproj://auth/github',
-    });
-    assert.equal(parsed.provider, 'github');
-  });
-
-  it('rejects github with idToken (wrong shape for provider)', () => {
+  it('rejects unknown providers', () => {
     assert.throws(() =>
       MobileVerifyRequest.parse({
-        provider: 'github',
-        idToken: 'eyJhbGc...',
+        provider: 'facebook',
+        accessToken: 'x',
       }),
     );
   });

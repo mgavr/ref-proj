@@ -2,7 +2,7 @@
 
 Reference project establishing the patterns used by Karaoke Place (kara.bar) and Prompt Bout.
 
-A minimal full-stack application where users sign in with Google, Facebook, or GitHub and see only their own account.
+A minimal full-stack application where users sign in with Google and see only their own account.
 
 ## Stack
 

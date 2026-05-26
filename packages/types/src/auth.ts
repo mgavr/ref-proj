@@ -6,29 +6,20 @@ import { User } from './user.js';
  * Body of POST /auth/mobile/verify.
  *
  * Per SPEC.md \u00a74.2, mobile clients obtain a provider-issued credential
- * locally (ID token for Google/Facebook, authorization code for GitHub
- * since GitHub doesn't issue ID tokens) and post it to the backend for
+ * locally (an ID token for Google) and post it to the backend for
  * verification + session issuance.
  *
- * The discriminated union enforces that `id_token` is required for
- * google/facebook and `code` (+ PKCE verifier) for github.
+ * DESIGN MARKER (kept on purpose): with one provider this is a plain
+ * object. When a second provider is added (e.g. Facebook needs an
+ * `accessToken` field instead of `idToken`, GitHub needs `code` +
+ * `codeVerifier` + `redirectUri`), convert this to a
+ * `z.discriminatedUnion('provider', [...])`. The handler in NestJS
+ * already switches on `provider`, so the cutover is mechanical.
  */
-export const MobileVerifyRequest = z.discriminatedUnion('provider', [
-  z.object({
-    provider: z.literal('google'),
-    idToken: z.string().min(1),
-  }),
-  z.object({
-    provider: z.literal('facebook'),
-    accessToken: z.string().min(1),
-  }),
-  z.object({
-    provider: z.literal('github'),
-    code: z.string().min(1),
-    codeVerifier: z.string().min(1),
-    redirectUri: z.string().url(),
-  }),
-]);
+export const MobileVerifyRequest = z.object({
+  provider: z.literal('google'),
+  idToken: z.string().min(1),
+});
 
 export type MobileVerifyRequest = z.infer<typeof MobileVerifyRequest>;
 

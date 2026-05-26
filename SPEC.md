@@ -1,6 +1,8 @@
 # Reference Project Spec
 
-A minimal full-stack project that establishes the patterns Karaoke Place (kara.bar) and Prompt Bout will inherit. Users sign in with Google, Facebook, or GitHub and see only their own account.
+A minimal full-stack project that establishes the patterns Karaoke Place (kara.bar) and Prompt Bout will inherit. Users sign in with Google and see only their own account.
+
+> **Note on providers:** This started out with Google, Facebook, and GitHub. Facebook and GitHub were removed before step 4 to keep the reference project focused — three providers cost setup time but teach the same pattern as one. The `identities` table and the per-provider switching logic are deliberately kept so additional providers slot in with new credentials and one new file, no schema rewrite.
 
 ## Decisions locked in
 
@@ -11,7 +13,7 @@ A minimal full-stack project that establishes the patterns Karaoke Place (kara.b
 | Web frontend | Next.js (App Router, React) |
 | Mobile frontend | React Native (Expo) |
 | Auth flow | Hybrid: server-side OAuth for web, client-side ID-token verification for mobile |
-| Identity providers | Google, Facebook, GitHub |
+| Identity providers | Google (Facebook and GitHub removed for simplicity \u2014 see note above) |
 | Session — web | httpOnly cookies (access + refresh), CSRF via SameSite=Lax + double-submit token |
 | Session — mobile | JWT access token in memory + refresh token in `expo-secure-store` |
 | Refresh tokens | Rotated on every use, token-family tracking for theft detection |
@@ -34,8 +36,8 @@ A minimal full-stack project that establishes the patterns Karaoke Place (kara.b
                 │
                 ▼
        ┌────────────────┐         ┌──────────────────┐
-       │  NestJS API    │◄────────│ Google / FB / GH │
-       │  (DO App Plat) │  OAuth  │ OAuth providers  │
+       │  NestJS API    │◄────────│ Google OAuth     │
+       │  (DO App Plat) │  OAuth  │ provider         │
        └────────┬───────┘         └──────────────────┘
                 │
                 ▼
@@ -134,7 +136,7 @@ Minimal — exactly what's needed for "user signs in, sees their account."
 |---|---|---|
 | `id` | uuid PK | |
 | `user_id` | uuid FK → users | ON DELETE CASCADE |
-| `provider` | enum('google','facebook','github') | |
+| `provider` | enum('google') | currently single-provider; enum keeps the door open for more |
 | `provider_user_id` | text | the `sub` / `id` from the provider |
 | `email_at_link` | text | snapshot for audit |
 | `created_at` | timestamptz | |
@@ -211,10 +213,8 @@ Per provider:
 | Provider | Mobile SDK | What backend verifies |
 |---|---|---|
 | Google | `expo-auth-session/providers/google` | ID token (JWT) against Google's JWKS |
-| Facebook | `react-native-fbsdk-next` | Access token via `GET https://graph.facebook.com/debug_token` + userinfo fetch |
-| GitHub | `expo-auth-session` with PKCE, no client secret on device | Authorization code → backend exchanges using server-side client_secret |
 
-GitHub is the awkward one on mobile: GitHub doesn't issue ID tokens and requires `client_secret` for code exchange. Solution: app does the PKCE redirect flow, gets a code back, sends the code to `/auth/mobile/verify/github`, backend completes the exchange. The principle ("backend is the only thing that holds secrets") is preserved.
+> **Adding a provider later.** The mobile verify endpoint takes a discriminated union by `provider`. With Google alone, the union has one branch. To add Facebook (access token via `graph.facebook.com/debug_token`) or GitHub (PKCE authorization code, server exchanges with client_secret), add a branch to the schema in `@refproj/types` and a `case` in the handler. No data-model change is needed \u2014 the `identities` table's `provider` enum just gets a new value via migration.
 
 ### 4.3 Refresh (both platforms)
 
@@ -264,7 +264,7 @@ Everything else is out of scope for the reference project.
 
 **Modules**
 
-- `AuthModule` — Passport strategies for each provider (`passport-google-oauth20`, `passport-facebook`, `passport-github2`), JWT module, refresh service, guards (`JwtAuthGuard`, `RefreshTokenGuard`).
+- `AuthModule` — Passport strategy for Google (`passport-google-oauth20`), JWT module, refresh service, guards (`JwtAuthGuard`, `RefreshTokenGuard`). One file per provider; adding a second is additive.
 - `UsersModule` — controller for `/users/me`, service over Prisma.
 - `DatabaseModule` — `PrismaService` (global).
 - `ConfigModule` — `@nestjs/config` with Zod-validated env schema.
@@ -288,7 +288,7 @@ Everything else is out of scope for the reference project.
 
 App Router. Three routes that matter:
 
-- `/login` — three buttons, each a plain `<a href="https://api.refproj.example/auth/{provider}/start">`. No JS needed for the redirect itself.
+- `/login` — one "Sign in with Google" button, a plain `<a href="https://api.refproj.example/auth/google/start">`. No JS needed for the redirect itself.
 - `/account` — server component that calls `GET /users/me` via the shared API client, passing through the request cookies. If 401, redirect to `/login`.
 - `/api/auth/callback-bounce` — *optional*, only needed if you decide later you want the cookie set on `web.refproj.example` instead of `api.refproj.example`. For the reference project we set cookies directly on the API domain and skip this.
 
@@ -302,7 +302,7 @@ App Router. Three routes that matter:
 
 Expo Router (file-based, same mental model as Next.js App Router).
 
-- `app/(auth)/login.tsx` — three buttons wired to the three providers via `expo-auth-session`. Successful flow stores tokens and navigates to `/account`.
+- `app/(auth)/login.tsx` — one "Sign in with Google" button wired via `expo-auth-session`. Successful flow stores tokens and navigates to `/account`.
 - `app/(app)/account.tsx` — fetches `/users/me`, shows email + display name + avatar + a Logout button.
 - `app/_layout.tsx` — root layout reads SecureStore on mount, decides which group to redirect into.
 
@@ -315,7 +315,7 @@ Expo Router (file-based, same mental model as Next.js App Router).
 **App configuration**
 
 - `app.config.ts` with EAS profiles for `development` (local API), `preview` (staging), and `production`.
-- URL schemes for OAuth redirects registered per provider in each provider's developer console.
+- URL schemes for the Google OAuth redirect registered in the Google Cloud Console.
 
 ---
 
@@ -358,10 +358,6 @@ WEB_ORIGIN=https://web.refproj.example
 MOBILE_REDIRECT_ALLOWLIST=refproj://auth
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-FACEBOOK_APP_ID=...
-FACEBOOK_APP_SECRET=...
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
 ```
 
 **Web (`apps/web`)**
@@ -376,8 +372,6 @@ NEXT_PUBLIC_AUTH_START_BASE=https://api.refproj.example/auth
 ```
 apiBaseUrl=https://api.refproj.example/api/v1
 googleClientId=...                       # iOS, Android, web variants
-facebookAppId=...
-githubClientId=...
 ```
 
 Provider client IDs *are* in the mobile bundle by necessity. That's fine — they're not secrets. Client *secrets* never leave the backend.
@@ -405,8 +399,8 @@ Provider client IDs *are* in the mobile bundle by necessity. That's fine — the
 
 Light but real — enough to catch regressions when we move to Prompt Bout.
 
-- **Backend unit:** Jest, focused on auth service (token rotation, theft detection, provider ID-token verification with mocked JWKS).
-- **Backend integration:** Supertest hitting a real Postgres in Docker, covering full login flow per provider (provider HTTP calls mocked with `nock` or MSW).
+- **Backend unit:** Jest, focused on auth service (token rotation, theft detection, Google ID-token verification with mocked JWKS).
+- **Backend integration:** Supertest hitting a real Postgres in Docker, covering the full Google login flow (Google's HTTP calls mocked with `nock` or MSW).
 - **Web e2e:** Playwright, one test that logs in via a mocked OAuth flow and asserts the account page renders the user.
 - **Mobile:** Detox is heavy for a reference project. Skip it; manual smoke test on a simulator is fine. Add it when there's a real product.
 
@@ -434,12 +428,12 @@ When we move from spec to code, my recommended sequence:
 1. Monorepo scaffolding (pnpm, Turborepo, Prisma schema, empty NestJS app, empty Next.js app, empty Expo app).
 2. `packages/types` with the User and Auth DTOs.
 3. NestJS: `/users/me` behind a fake auth guard that reads a header. Get the request lifecycle, validation pipe, error filter, and Prisma all working end-to-end before any OAuth code.
-4. Real auth — Google first (simplest), then GitHub (similar shape), then Facebook (the odd one out, no ID token).
+4. Real auth \u2014 Google OAuth, split into 4a (web flow) and 4b (mobile flow).
 5. `packages/api-client` with both transports.
 6. Web `/login` and `/account`.
 7. Mobile `/login` and `/account`.
 8. Deploy to App Platform + Vercel + EAS preview.
-9. Manual smoke test of all three providers on both platforms.
+9. Manual smoke test of the Google login flow on both web and mobile.
 
 Each step is a checkpoint we can review before moving on.
 

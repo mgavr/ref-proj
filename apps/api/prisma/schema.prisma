@@ -80,8 +80,6 @@ model RefreshToken {
 
 enum AuthProvider {
   google
-  facebook
-  github
 
   @@map("auth_provider")
 }
