@@ -46,7 +46,9 @@ export class TokenService {
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
-    const { payload } = await jwtVerify(token, this.accessSecret);
+    const { payload } = await jwtVerify(token, this.accessSecret, {
+      algorithms: ['HS256'],
+    });
     if (typeof payload.sub !== 'string') {
       throw new Error('access token missing sub');
     }
@@ -65,7 +67,9 @@ export class TokenService {
   }
 
   async verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
-    const { payload } = await jwtVerify(token, this.refreshSecret);
+    const { payload } = await jwtVerify(token, this.refreshSecret, {
+      algorithms: ['HS256'],
+    });
     if (
       typeof payload.sub !== 'string' ||
       typeof payload.jti !== 'string' ||
