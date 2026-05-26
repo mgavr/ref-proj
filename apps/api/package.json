@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "dev": "prisma migrate deploy && prisma generate && nest start --watch",
+    "dev": "pnpm --filter @refproj/types --filter @refproj/api-client build && prisma migrate deploy && prisma generate && nest start --watch",
     "start": "node dist/main.js",
     "lint": "echo \"lint: not configured yet\" && exit 0",
     "test": "echo \"test: not configured yet\" && exit 0",

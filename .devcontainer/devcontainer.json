@@ -26,10 +26,13 @@
   //   postinstall, which runs `prisma generate`)
   // - belt-and-braces: re-run generate explicitly in case --ignore-scripts
   //   was ever in effect
+  // - build the two shared workspace packages so the API can resolve
+  //   their dist/ outputs on first dev run (they're dual-emit CJS+ESM
+  //   because the API is CJS and web/mobile are ESM)
   // - copy .env.example to .env so the API can boot
   // We DO NOT run db:migrate or db:seed here \u2014 Postgres isn't running
   // yet at this point. See README.md for the post-create steps.
-  "postCreateCommand": "pnpm install && pnpm --filter @refproj/api db:generate && cp -n apps/api/.env.example apps/api/.env || true",
+  "postCreateCommand": "pnpm install && pnpm --filter @refproj/api db:generate && pnpm --filter @refproj/types --filter @refproj/api-client build && cp -n apps/api/.env.example apps/api/.env || true",
 
   // Welcome message shown each time the user attaches to the Codespace.
   "postAttachCommand": {

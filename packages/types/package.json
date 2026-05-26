@@ -2,20 +2,23 @@
   "name": "@refproj/types",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test 'dist-test/**/*.test.js'",
+    "build": "pnpm build:cjs && pnpm build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}))\"",
+    "build:esm": "tsc -p tsconfig.esm.json && node -e \"require('fs').writeFileSync('dist/esm/package.json', JSON.stringify({type:'module'}))\"",
+    "dev": "tsc -p tsconfig.esm.json --watch",
+    "typecheck": "tsc -p tsconfig.esm.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('dist-test/package.json', JSON.stringify({type:'module'}))\" && node --test 'dist-test/**/*.test.js'",
     "clean": "rm -rf dist dist-test .turbo"
   },
   "dependencies": {
