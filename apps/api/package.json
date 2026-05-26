@@ -27,6 +27,9 @@
     "@prisma/client": "6.2.1",
     "@refproj/api-client": "workspace:*",
     "@refproj/types": "workspace:*",
+    "cookie": "1.0.2",
+    "cookie-parser": "1.4.7",
+    "jose": "5.9.6",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1",
     "zod": "3.24.1"
@@ -34,6 +37,7 @@
   "devDependencies": {
     "@nestjs/cli": "10.4.9",
     "@nestjs/schematics": "10.2.3",
+    "@types/cookie-parser": "1.4.8",
     "@types/express": "5.0.0",
     "@types/node": "22.10.5",
     "prisma": "6.2.1",

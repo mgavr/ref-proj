@@ -10,12 +10,12 @@ import {
 import type { User as DbUser } from '@prisma/client';
 import { UpdateUserRequest, type User } from '@refproj/types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { FakeAuthGuard } from '../auth/fake-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ZodBody } from '../common/zod.decorators';
 import { UsersService } from './users.service';
 
 @Controller('users')
-@UseGuards(FakeAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 

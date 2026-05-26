@@ -63,5 +63,16 @@ pnpm --filter @refproj/api dev
 
 Once the API is running on http://localhost:3000:
 
+- `GET /` — placeholder landing page with Sign In / Show Me / Logout buttons (replaced by Next.js in step 6)
 - `GET /healthz` — liveness + db check
-- `GET /api/v1/users/me` — the fake-guarded "current user" endpoint (returns the seeded developer user)
+- `GET /api/v1/auth/google/start` — begins Google OAuth (redirects to Google)
+- `GET /api/v1/auth/google/callback` — Google redirects here; on success, sets session cookies and redirects to `WEB_ORIGIN`
+- `POST /api/v1/auth/refresh` — rotates the refresh token (web reads cookie, mobile will send body)
+- `POST /api/v1/auth/logout` — revokes the refresh-token family and clears cookies
+- `GET /api/v1/users/me` — returns the currently-authenticated user (requires session)
+- `PATCH /api/v1/users/me` — updates display name
+- `DELETE /api/v1/users/me` — deletes the user
+
+### Trying the auth flow in dev
+
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). In Codespaces, make sure port 3000 is set to **Public** visibility so Google's redirect can reach the callback. Then open `http://localhost:3000/` (or the Codespace forwarded URL) and click "Sign in with Google."
