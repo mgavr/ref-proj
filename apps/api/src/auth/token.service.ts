@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { SignJWT, jwtVerify } from 'jose';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { SignJWT, jwtVerify, decodeProtectedHeader } from 'jose';
 import { createHash, randomBytes } from 'node:crypto';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
@@ -27,12 +27,16 @@ export interface RefreshTokenPayload {
 
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
   private readonly accessSecret: Uint8Array;
   private readonly refreshSecret: Uint8Array;
 
   constructor(@Inject(ENV) private readonly env: Env) {
     this.accessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
     this.refreshSecret = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
+    this.logger.log(
+      `[init] access secret bytes=${this.accessSecret.length}, alg=HS256, JWT_ACCESS_TTL=${env.JWT_ACCESS_TTL}`,
+    );
   }
 
   // ---- Access tokens ------------------------------------------------
@@ -46,13 +50,36 @@ export class TokenService {
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
-    const { payload } = await jwtVerify(token, this.accessSecret, {
-      algorithms: ['HS256'],
-    });
-    if (typeof payload.sub !== 'string') {
-      throw new Error('access token missing sub');
+    // DIAGNOSTIC: log what's actually being verified, with which options.
+    // Remove once the auth flow is stable.
+    try {
+      const header = decodeProtectedHeader(token);
+      this.logger.log(
+        `[verify-access] token header=${JSON.stringify(header)} ` +
+          `secret_bytes=${this.accessSecret.length} ` +
+          `expecting_algs=['HS256']`,
+      );
+    } catch (e) {
+      this.logger.warn(`[verify-access] failed to decode header: ${e}`);
     }
-    return { sub: payload.sub };
+
+    try {
+      const { payload } = await jwtVerify(token, this.accessSecret, {
+        algorithms: ['HS256'],
+      });
+      if (typeof payload.sub !== 'string') {
+        throw new Error('access token missing sub');
+      }
+      this.logger.log(`[verify-access] OK sub=${payload.sub}`);
+      return { sub: payload.sub };
+    } catch (e) {
+      this.logger.warn(
+        `[verify-access] FAILED ${e instanceof Error ? e.constructor.name : 'unknown'}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+      throw e;
+    }
   }
 
   // ---- Refresh tokens -----------------------------------------------

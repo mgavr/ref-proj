@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { ApiErrorBody, ApiErrorCode } from '@refproj/types';
@@ -18,11 +19,13 @@ import { TokenService } from './token.service';
  *
  * Loads the User row from Postgres and attaches it to the request so
  * @CurrentUser() can read it downstream. A token that verifies but
- * points to a deleted user is treated as unauthenticated \u2014 not a
+ * points to a deleted user is treated as unauthenticated — not a
  * 404, since the caller shouldn't be told whether the id ever existed.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(
     private readonly tokens: TokenService,
     private readonly db: PrismaService,
@@ -31,19 +34,20 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<Request>();
 
-    const token = extractToken(req);
-    if (!token) {
+    const tokenSrc = extractTokenWithSource(req);
+    if (!tokenSrc) {
+      this.logger.warn('[guard] no credentials on request');
       throw unauthorized('No credentials.', 'UNAUTHENTICATED');
     }
+    this.logger.log(
+      `[guard] extracted token from ${tokenSrc.source}, length=${tokenSrc.token.length}`,
+    );
 
     let payload;
     try {
-      payload = await this.tokens.verifyAccessToken(token);
+      payload = await this.tokens.verifyAccessToken(tokenSrc.token);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown';
-      // jose throws specific error classes; check by name rather than
-      // depending on the class identity, which can vary across import
-      // styles.
       const errName = err instanceof Error ? err.constructor.name : '';
       if (errName === 'JWTExpired') {
         throw unauthorized('Access token expired.', 'TOKEN_EXPIRED');
@@ -61,15 +65,14 @@ export class JwtAuthGuard implements CanActivate {
   }
 }
 
-function extractToken(req: Request): string | null {
+function extractTokenWithSource(req: Request): { token: string; source: string } | null {
   const header = req.headers.authorization;
   if (header && header.startsWith('Bearer ')) {
-    return header.slice('Bearer '.length).trim();
+    return { token: header.slice('Bearer '.length).trim(), source: 'header' };
   }
-  // cookie-parser middleware populates req.cookies.
   const cookieJar = (req as Request & { cookies?: Record<string, string> }).cookies;
   if (cookieJar && typeof cookieJar[COOKIE_ACCESS] === 'string') {
-    return cookieJar[COOKIE_ACCESS];
+    return { token: cookieJar[COOKIE_ACCESS], source: 'cookie' };
   }
   return null;
 }
