@@ -31,9 +31,9 @@ You can develop in a cloud environment (recommended — nothing to install on yo
 
    ```bash
    # First time only:
-   pnpm db:up
-   pnpm db:migrate:new init   # creates the initial migration
-   pnpm db:seed
+   pnpm db:up                 # start Postgres
+   pnpm db:migrate            # apply the committed init migration
+   pnpm db:seed               # create the developer fake user
 
    # Every session:
    pnpm db:up
@@ -42,18 +42,20 @@ You can develop in a cloud environment (recommended — nothing to install on yo
 
 4. Codespaces forwards port 3000 automatically; the Ports tab shows a public URL you can curl from anywhere (including your phone).
 
-The devcontainer config (`.devcontainer/devcontainer.json`) installs Node 22, pnpm, Docker-in-Docker, and the relevant VS Code extensions. It runs `pnpm install` and copies `.env.example` to `.env` on creation, so you land in a ready-to-use state.
+The devcontainer config (`.devcontainer/devcontainer.json`) installs Node 22, pnpm, Docker-in-Docker, and the relevant VS Code extensions. It runs `pnpm install` (which triggers `prisma generate` via the API's `postinstall`) and copies `.env.example` to `.env` on creation, so you land in a ready-to-use state.
+
+> **If `pnpm db:seed` ever complains that `@prisma/client did not initialize yet`,** run `pnpm --filter @refproj/api db:generate` and try again. The `postinstall` hook normally handles this, but if you ran `pnpm install --ignore-scripts` (or skipped install entirely) the generated client won't exist yet.
 
 ### Option B: Local development
 
 Prereqs: Node 22, pnpm 9, Docker.
 
 ```bash
-pnpm install
-pnpm db:up
+pnpm install                 # runs `prisma generate` via postinstall
+pnpm db:up                   # start Postgres in Docker
 cp apps/api/.env.example apps/api/.env
-pnpm db:migrate:new init   # first time only
-pnpm db:seed               # first time only
+pnpm db:migrate              # first time only \u2014 apply the committed init migration
+pnpm db:seed                 # first time only \u2014 create the dev user
 pnpm --filter @refproj/api dev
 ```
 

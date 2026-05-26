@@ -10,6 +10,7 @@
     "test": "echo \"test: not configured yet\" && exit 0",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo",
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:new": "prisma migrate dev --create-only",

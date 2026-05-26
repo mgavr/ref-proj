@@ -22,12 +22,14 @@
   "onCreateCommand": "npm install -g pnpm@9.15.9",
 
   // Run after onCreateCommand and after the workspace is mounted.
-  // - pnpm install resolves the workspace
+  // - pnpm install resolves the workspace (and triggers the API's
+  //   postinstall, which runs `prisma generate`)
+  // - belt-and-braces: re-run generate explicitly in case --ignore-scripts
+  //   was ever in effect
   // - copy .env.example to .env so the API can boot
-  // - We DO NOT run prisma generate or db:migrate here \u2014 Postgres
-  //   isn't running yet at this point; the user runs `pnpm db:up &&
-  //   pnpm db:migrate` after the Codespace is ready.
-  "postCreateCommand": "pnpm install && cp -n apps/api/.env.example apps/api/.env || true",
+  // We DO NOT run db:migrate or db:seed here \u2014 Postgres isn't running
+  // yet at this point. See README.md for the post-create steps.
+  "postCreateCommand": "pnpm install && pnpm --filter @refproj/api db:generate && cp -n apps/api/.env.example apps/api/.env || true",
 
   // Welcome message shown each time the user attaches to the Codespace.
   "postAttachCommand": {
