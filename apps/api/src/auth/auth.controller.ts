@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -12,10 +13,16 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ApiErrorBody } from '@refproj/types';
+import {
+  type ApiErrorBody,
+  MobileRefreshRequest,
+  MobileVerifyRequest,
+  type MobileSessionResponse,
+} from '@refproj/types';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
-import { AuthService } from './auth.service';
+import { AuthService, type SessionResult } from './auth.service';
+import { ZodBody } from '../common/zod.decorators';
 import {
   COOKIE_OAUTH_STATE,
   COOKIE_REFRESH,
@@ -124,6 +131,25 @@ export class AuthController {
     res.redirect(302, this.env.WEB_ORIGIN);
   }
 
+  // ---- Google mobile verify ----------------------------------------
+
+  /**
+   * Mobile clients obtain a Google ID token locally (via expo-auth-session)
+   * and POST it here. We verify it against Google's JWKS, upsert the
+   * user + identity (same path as the web flow), and return the session
+   * as JSON — no cookies, since mobile stores tokens in SecureStore.
+   */
+  @Post('mobile/verify')
+  async mobileVerify(
+    @ZodBody(MobileVerifyRequest) body: MobileVerifyRequest,
+  ): Promise<MobileSessionResponse> {
+    // Single provider today; the discriminator is here so adding a
+    // second provider is a new `case`, not a refactor.
+    const info = await this.google.verifyIdToken(body.idToken);
+    const session = await this.auth.loginWithGoogle(info);
+    return this.toMobileSession(session);
+  }
+
   // ---- Refresh -----------------------------------------------------
 
   @Post('refresh')
@@ -151,6 +177,20 @@ export class AuthController {
     res.status(HttpStatus.OK).json({ user: session.user });
   }
 
+  /**
+   * Mobile refresh. The client sends its stored refresh token in the
+   * body (it has no cookies) and gets a fresh token bundle as JSON.
+   * Rotation + theft detection are identical to the web path — same
+   * AuthService.rotateRefreshToken under the hood.
+   */
+  @Post('mobile/refresh')
+  async mobileRefresh(
+    @ZodBody(MobileRefreshRequest) body: MobileRefreshRequest,
+  ): Promise<MobileSessionResponse> {
+    const session = await this.auth.rotateRefreshToken(body.refreshToken);
+    return this.toMobileSession(session);
+  }
+
   // ---- Logout ------------------------------------------------------
 
   @Post('logout')
@@ -166,7 +206,30 @@ export class AuthController {
     res.status(HttpStatus.NO_CONTENT).send();
   }
 
+  /**
+   * Mobile logout. Token comes from the body; no cookies to clear.
+   * Idempotent — a missing/invalid token is a no-op.
+   */
+  @Post('mobile/logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async mobileLogout(
+    @ZodBody(MobileRefreshRequest) body: MobileRefreshRequest,
+  ): Promise<void> {
+    await this.auth.logout(body.refreshToken);
+  }
+
   // ---- Helpers -----------------------------------------------------
+
+  private toMobileSession(session: SessionResult): MobileSessionResponse {
+    return {
+      user: session.user,
+      tokens: {
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        expiresIn: this.env.JWT_ACCESS_TTL,
+      },
+    };
+  }
 
   private redirectWithError(res: Response, code: string): void {
     const url = new URL(this.env.WEB_ORIGIN);

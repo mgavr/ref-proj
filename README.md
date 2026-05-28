@@ -67,8 +67,11 @@ Once the API is running on http://localhost:3000:
 - `GET /healthz` — liveness + db check
 - `GET /api/v1/auth/google/start` — begins Google OAuth (redirects to Google)
 - `GET /api/v1/auth/google/callback` — Google redirects here; on success, sets session cookies and redirects to `WEB_ORIGIN`
-- `POST /api/v1/auth/refresh` — rotates the refresh token (web reads cookie, mobile will send body)
-- `POST /api/v1/auth/logout` — revokes the refresh-token family and clears cookies
+- `POST /api/v1/auth/mobile/verify` — mobile: exchange a Google ID token for a session (returns tokens as JSON)
+- `POST /api/v1/auth/refresh` — web: rotates the refresh token (reads cookie, sets new cookies)
+- `POST /api/v1/auth/mobile/refresh` — mobile: rotates the refresh token (reads body, returns JSON)
+- `POST /api/v1/auth/logout` — web: revokes the refresh-token family and clears cookies
+- `POST /api/v1/auth/mobile/logout` — mobile: revokes the refresh-token family (reads body)
 - `GET /api/v1/users/me` — returns the currently-authenticated user (requires session)
 - `PATCH /api/v1/users/me` — updates display name
 - `DELETE /api/v1/users/me` — deletes the user
