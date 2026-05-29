@@ -1,0 +1,29 @@
+# Don't ship into the build context — keeps builds fast and image small.
+
+# Build outputs
+**/dist
+**/.next
+**/.turbo
+**/dist-test
+
+# Dev artifacts
+**/node_modules
+**/.env
+**/.env.local
+
+# Source control
+.git
+.github
+
+# IDE
+.vscode
+.idea
+**/*.swp
+**/.DS_Store
+
+# Tests
+**/coverage
+
+# Skill docs etc.
+docs
+.devcontainer

@@ -1,0 +1,115 @@
+# DigitalOcean App Platform spec for the ref-proj API + Postgres.
+#
+# This file is loaded by App Platform when you create the app via the
+# dashboard ("Use Existing Resources" → "Use Spec from Repo"), the
+# `doctl apps create --spec` CLI, or the API. Edits to this file in
+# `main` do NOT auto-update the live app — you must re-apply via the
+# dashboard's spec editor or `doctl apps update`.
+#
+# Two components:
+#   - service "api": NestJS, built from apps/api/Dockerfile. Listens on
+#     PORT (App Platform injects PORT=8080).
+#   - database "db": Postgres 16, dev tier ($7/mo). DATABASE_URL is
+#     auto-injected into the api service via ${db.DATABASE_URL}.
+#
+# Total cost as of step 8: $5 (basic-xxs app) + $7 (dev DB) = $12/mo.
+
+name: ref-proj
+region: nyc
+
+services:
+  - name: api
+    # Build from Dockerfile in the repo root context. The Dockerfile is
+    # at apps/api/Dockerfile but it COPYs from / so it needs the whole
+    # repo as build context — App Platform handles this when source_dir
+    # is "/" and dockerfile_path points to a file within it.
+    source_dir: /
+    dockerfile_path: apps/api/Dockerfile
+
+    github:
+      repo: mgavr/ref-proj
+      branch: main
+      deploy_on_push: true
+
+    http_port: 8080
+    instance_count: 1
+    # apps-s-1vcpu-0.5gb = "Basic XXS" = $5/mo. Smallest tier that exists.
+    instance_size_slug: apps-s-1vcpu-0.5gb
+
+    # Liveness check. App Platform polls this; if it stops responding,
+    # the instance is restarted. Our /healthz route already does a real
+    # Postgres SELECT 1, so a green healthcheck means the DB is reachable
+    # too.
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 5
+
+    # The API is the only HTTP component, so it serves everything at /.
+    # Web app is on Vercel and proxies /api/v1/* back to this URL.
+    routes:
+      - path: /
+
+    envs:
+      # ---- App-managed (auto-injected by App Platform) ----
+      # The database link below makes ${db.DATABASE_URL} resolvable.
+      # DO Managed Postgres URLs already include ?sslmode=require.
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${db.DATABASE_URL}
+
+      # ---- Set in the dashboard (mark these encrypted) ----
+      # Listed here so the dashboard prompts for each one at app creation.
+      # Type SECRET means encrypted at rest and not echoed in logs.
+      - key: JWT_ACCESS_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_ME_set_in_dashboard_to_a_32+_char_random_string"
+      - key: JWT_REFRESH_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_ME_set_in_dashboard_to_a_32+_char_random_string"
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_ME_set_in_dashboard_to_prod_google_client_id"
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_ME_set_in_dashboard_to_prod_google_client_secret"
+
+      # ---- URLs (set after Vercel deploy reveals its hostname) ----
+      # Both API_PUBLIC_URL and WEB_ORIGIN point at the Vercel URL,
+      # because Next.js proxies /api/v1/* to the API (Option C). The
+      # OAuth redirect URI registered with Google is built from
+      # API_PUBLIC_URL.
+      - key: API_PUBLIC_URL
+        scope: RUN_TIME
+        value: "REPLACE_ME_set_in_dashboard_to_vercel_url"
+      - key: WEB_ORIGIN
+        scope: RUN_TIME
+        value: "REPLACE_ME_set_in_dashboard_to_vercel_url"
+
+      # ---- Defaults (fine to leave as-is) ----
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: "production"
+      - key: JWT_ACCESS_TTL
+        scope: RUN_TIME
+        value: "900"
+      - key: JWT_REFRESH_TTL
+        scope: RUN_TIME
+        value: "2592000"
+
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    # The dev DB tier. $7/mo, no backups, 512MB RAM. Fine for a
+    # reference project. Upgrade path: change to PRODUCTION + a real
+    # size slug like "db-s-1vcpu-1gb" ($15/mo, backed up).
+    production: false
+    cluster_name: ref-proj-db

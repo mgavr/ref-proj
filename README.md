@@ -76,6 +76,10 @@ Once the API is running on http://localhost:3000:
 - `PATCH /api/v1/users/me` — updates display name
 - `DELETE /api/v1/users/me` — deletes the user
 
+## Deployment
+
+The `.do/app.yaml` is the DigitalOcean App Platform spec; `apps/api/Dockerfile` builds the API for prod. See **STEP_8_DEPLOY.md** for the step-by-step runbook (DO + Vercel + Google OAuth prod client + smoke test). Total cost: $12/month (DO Basic XXS + dev Postgres + free Vercel Hobby).
+
 ### Trying the auth flow in dev
 
 Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`).
