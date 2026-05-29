@@ -97,13 +97,15 @@ In the Codespace terminal:
 
 ```bash
 cd /workspaces/ref-proj
+# IMPORTANT: align all SDK 54 dependencies to the exact versions
+# Expo recommends for this SDK release. Run this after pulling and
+# after any Expo SDK version bump.
+pnpm install
+pnpm --filter @refproj/mobile exec expo install --fix
+# Now start with tunnel mode (--tunnel because the Codespace network
+# isn't reachable from your phone).
 pnpm --filter @refproj/mobile dev -- --tunnel
 ```
-
-(The `--tunnel` flag tells Expo to expose the bundle over ngrok-like
-tunneling, since your phone can't reach the Codespace network directly.)
-
-First time, Expo may prompt to install `@expo/ngrok` — accept.
 
 When it's ready you'll see a QR code in the terminal plus a URL like
 `exp://blah-blah-anonymous.tunnel.expo.dev:80`.
