@@ -78,12 +78,11 @@ Once the API is running on http://localhost:3000:
 
 ### Trying the auth flow in dev
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). The two URLs are different:
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`).
 
-- `API_PUBLIC_URL` (port 3000) — the API's own URL; what Google calls back. Must match the redirect URI registered in Google Cloud Console.
-- `WEB_ORIGIN` (port 3001) — where users land after a successful OAuth callback.
+**Shared-hostname proxy.** The Next.js app proxies `/api/v1/*` to the API (see `apps/web/next.config.mjs` rewrites). This collapses web + API to a single origin from the browser's perspective, which is essential for session cookies to work — different hostnames = different cookie jars. In dev that means both `API_PUBLIC_URL` and `WEB_ORIGIN` point at the **web** app (port 3001).
 
-And `NEXT_PUBLIC_API_BASE_URL` in `apps/web/.env.local` must point at the same place as `API_PUBLIC_URL`, with the `/api/v1` suffix.
+Google's redirect URI in the Cloud Console must match `${API_PUBLIC_URL}/api/v1/auth/google/callback`. In Codespaces, that's the port-3001 forwarded URL plus the callback path.
 
 Run both apps in separate terminals:
 
