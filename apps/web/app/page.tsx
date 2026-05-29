@@ -1,11 +1,14 @@
-export default function Home(): React.JSX.Element {
-  return (
-    <main style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>ref-proj</h1>
-      <p>
-        Scaffolding only. Real UI lands in build step §14.6 (per{' '}
-        <code>SPEC.md</code>).
-      </p>
-    </main>
-  );
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+/**
+ * Root route. We don't render a landing page in the reference project —
+ * just bounce to /account (if cookie present) or /login (if not). The
+ * middleware does this for /account too, so this route exists mainly
+ * so users hitting the bare URL have somewhere to go.
+ */
+export default async function Home(): Promise<never> {
+  const jar = await cookies();
+  const hasSession = jar.has('refproj_access');
+  redirect(hasSession ? '/account' : '/login');
 }

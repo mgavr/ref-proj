@@ -1,16 +1,13 @@
-import { Controller, Get, Header, Inject } from '@nestjs/common';
-import { ENV } from './config/config.module';
-import type { Env } from './config/env';
+import { Controller, Get, Header } from '@nestjs/common';
 
 /**
- * Placeholder landing page served by the API. Three buttons let you
- * exercise the auth flow end-to-end before the real Next.js frontend
- * lands. Replaced wholesale in step 6.
+ * Debug page kept for testing the auth flow without a frontend. Moved
+ * here in step 6 from `/` after the real Next.js frontend took over.
+ * Available at GET /api/v1/auth/_debug. Useful when iterating on auth
+ * changes — you don't have to spin up the web app to hit the flow.
  */
-@Controller('/')
+@Controller('auth/_debug')
 export class RootController {
-  constructor(@Inject(ENV) private readonly env: Env) {}
-
   @Get()
   @Header('Content-Type', 'text/html; charset=utf-8')
   index(): string {
@@ -18,32 +15,30 @@ export class RootController {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>ref-proj (dev)</title>
+    <title>ref-proj auth debug</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       :root { color-scheme: light dark; }
-      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 4rem auto; padding: 0 1rem; }
-      h1 { margin-bottom: 0.25rem; }
-      .sub { opacity: 0.7; margin-top: 0; }
-      .row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+      body { font-family: ui-monospace, SFMono-Regular, monospace; max-width: 640px; margin: 4rem auto; padding: 0 1rem; }
+      h1 { font-size: 1rem; margin: 0 0 1rem; opacity: 0.6; }
+      .row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
       a.button, button {
-        font: inherit; padding: 0.5rem 1rem; border-radius: 6px;
+        font: inherit; padding: 0.4rem 0.8rem; border-radius: 4px;
         border: 1px solid currentColor; background: transparent;
         color: inherit; cursor: pointer; text-decoration: none;
       }
-      pre { background: rgba(127,127,127,0.1); padding: 1rem; border-radius: 6px; overflow-x: auto; }
+      pre { background: rgba(127,127,127,0.1); padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; }
       .err { color: #c00; }
     </style>
   </head>
   <body>
-    <h1>ref-proj</h1>
-    <p class="sub">Step 4a placeholder. Real Next.js frontend lands in step 6.</p>
+    <h1># ref-proj — auth debug</h1>
     <div class="row">
-      <a class="button" href="/api/v1/auth/google/start">Sign in with Google</a>
-      <button id="me">Show me</button>
-      <button id="logout">Logout</button>
+      <a class="button" href="/api/v1/auth/google/start">sign in (google)</a>
+      <button id="me">/users/me</button>
+      <button id="logout">/auth/logout</button>
     </div>
-    <pre id="out">(click "Show me" after signing in)</pre>
+    <pre id="out">(click /users/me after signing in)</pre>
     <script>
       const out = document.getElementById('out');
       const url = new URL(location.href);

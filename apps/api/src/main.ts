@@ -34,10 +34,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.setGlobalPrefix('api/v1', {
-    exclude: [
-      { path: 'healthz', method: RequestMethod.GET },
-      { path: '/', method: RequestMethod.GET },
-    ],
+    exclude: [{ path: 'healthz', method: RequestMethod.GET }],
   });
   app.useGlobalFilters(new GlobalExceptionFilter());
 
@@ -47,7 +44,7 @@ async function bootstrap(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log(`[api] health: http://localhost:${env.PORT}/healthz`);
   // eslint-disable-next-line no-console
-  console.log(`[api] root:   http://localhost:${env.PORT}/`);
+  console.log(`[api] debug:  http://localhost:${env.PORT}/api/v1/auth/_debug`);
   // eslint-disable-next-line no-console
   console.log(`[api] me:     http://localhost:${env.PORT}/api/v1/users/me`);
 }

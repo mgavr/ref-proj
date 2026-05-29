@@ -63,8 +63,8 @@ pnpm --filter @refproj/api dev
 
 Once the API is running on http://localhost:3000:
 
-- `GET /` — placeholder landing page with Sign In / Show Me / Logout buttons (replaced by Next.js in step 6)
 - `GET /healthz` — liveness + db check
+- `GET /api/v1/auth/_debug` — debug landing page for exercising the auth flow without the web frontend
 - `GET /api/v1/auth/google/start` — begins Google OAuth (redirects to Google)
 - `GET /api/v1/auth/google/callback` — Google redirects here; on success, sets session cookies and redirects to `WEB_ORIGIN`
 - `POST /api/v1/auth/mobile/verify` — mobile: exchange a Google ID token for a session (returns tokens as JSON)
@@ -78,4 +78,15 @@ Once the API is running on http://localhost:3000:
 
 ### Trying the auth flow in dev
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). In Codespaces, make sure port 3000 is set to **Public** visibility so Google's redirect can reach the callback. Then open `http://localhost:3000/` (or the Codespace forwarded URL) and click "Sign in with Google."
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). `WEB_ORIGIN` should point at the **web** app (port 3001), not the API.
+
+Run both apps in separate terminals:
+
+```bash
+pnpm --filter @refproj/api dev    # API on :3000
+pnpm --filter @refproj/web dev    # Web on :3001
+```
+
+In Codespaces, make sure both ports 3000 (API) and 3001 (Web) are set to **Public** visibility so Google's redirect can reach the callback and your browser can reach the web app. Open the port-3001 URL and click "Sign in with Google".
+
+If you just want to test the API auth flow without running the web app, hit `GET /api/v1/auth/_debug` on port 3000 instead.
