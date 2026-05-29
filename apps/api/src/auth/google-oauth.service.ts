@@ -35,11 +35,13 @@ export class GoogleOAuthService {
    * The redirect URI we register with Google AND ask the user to be
    * sent back to. Must match exactly the value in the Google Cloud
    * Console for this Web Client.
+   *
+   * This is built from API_PUBLIC_URL (the API's own public hostname),
+   * NOT WEB_ORIGIN. The OAuth callback runs on the *API* — only after
+   * it completes do we redirect the user to WEB_ORIGIN.
    */
   get redirectUri(): string {
-    // Same hostname as WEB_ORIGIN — we set WEB_ORIGIN to the API host
-    // in dev because there's no separate web frontend yet.
-    return `${this.env.WEB_ORIGIN}/api/v1/auth/google/callback`;
+    return `${this.env.API_PUBLIC_URL}/api/v1/auth/google/callback`;
   }
 
   /**

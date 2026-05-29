@@ -12,11 +12,20 @@ export const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().url(),
 
+  // ---- API public URL ------------------------------------------------
+  // The URL where this API is reachable from the public internet — i.e.
+  // the URL we register with OAuth providers as their redirect_uri.
+  // In dev/Codespaces this is the port-3000 forwarded URL. In production
+  // this is your API domain (e.g. https://api.refproj.example).
+  // Used to build GoogleOAuthService.redirectUri.
+  API_PUBLIC_URL: z.string().url(),
+
   // ---- Web origin -----------------------------------------------------
-  // The URL the OAuth callback redirects back to after a successful login.
-  // In dev (no Next.js yet) this points at the API itself; we serve a
-  // tiny placeholder landing page at GET /. Once the Next.js web frontend
-  // lands, this becomes the Next.js URL.
+  // The URL of the web frontend that hosts the login page and that we
+  // redirect users back to after a successful OAuth callback. Different
+  // from API_PUBLIC_URL: this is where the user lands after we set
+  // session cookies. Used for the 302 at the end of the callback handler
+  // and as the CORS origin.
   WEB_ORIGIN: z.string().url(),
 
   // ---- Cookies --------------------------------------------------------

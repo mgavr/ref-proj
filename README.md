@@ -78,7 +78,12 @@ Once the API is running on http://localhost:3000:
 
 ### Trying the auth flow in dev
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). `WEB_ORIGIN` should point at the **web** app (port 3001), not the API.
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL`, and `WEB_ORIGIN` in `apps/api/.env` (see comments in `.env.example`). The two URLs are different:
+
+- `API_PUBLIC_URL` (port 3000) — the API's own URL; what Google calls back. Must match the redirect URI registered in Google Cloud Console.
+- `WEB_ORIGIN` (port 3001) — where users land after a successful OAuth callback.
+
+And `NEXT_PUBLIC_API_BASE_URL` in `apps/web/.env.local` must point at the same place as `API_PUBLIC_URL`, with the `/api/v1` suffix.
 
 Run both apps in separate terminals:
 
