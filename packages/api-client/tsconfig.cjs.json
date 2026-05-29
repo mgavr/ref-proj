@@ -6,7 +6,9 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "dist-test", "src/**/*.test.ts"]
 }

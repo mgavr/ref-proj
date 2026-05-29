@@ -4,7 +4,9 @@
     "outDir": "./dist/esm",
     "rootDir": "./src",
     "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "dist-test", "src/**/*.test.ts"]
 }
