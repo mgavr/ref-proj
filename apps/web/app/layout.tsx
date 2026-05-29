@@ -13,7 +13,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Google Fonts — preloaded for snap. */}
+        {/* Inter as the primary face. JetBrains Mono kept only for
+            technical metadata (ids, dates, status codes). Preconnect
+            for snap. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -22,11 +24,11 @@ export default function RootLayout({
         />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
         />
       </head>
-      <body className="relative min-h-screen">
-        <main className="relative z-10">{children}</main>
+      <body className="min-h-screen">
+        <main>{children}</main>
       </body>
     </html>
   );

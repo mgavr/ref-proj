@@ -1,52 +1,87 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * Tailwind theme for the Linear-leaning aesthetic (variant A from the
+ * step-6.5 mockups). Dense, geometric, neutral grays with a single
+ * indigo accent. Light-mode only — no dark variants. No dark: classes
+ * needed anywhere in the app.
+ */
 const config: Config = {
-  content: [
-    './app/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-  ],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  // Single source of truth for our palette. We're explicitly NOT using
+  // Tailwind's default color palette — too many options, too little
+  // intentionality. These are the colors. Period.
   theme: {
-    extend: {
-      fontFamily: {
-        // Heading: a high-contrast serif with personality. Loaded via
-        // Google Fonts in layout.tsx.
-        display: ['"Instrument Serif"', 'ui-serif', 'Georgia', 'serif'],
-        // Body: a clean sans with subtle character.
-        sans: ['"Geist Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        // Used sparingly for technical details (IDs, dates, status codes)
-        // to match the "reference project" tone.
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+    colors: {
+      transparent: 'transparent',
+      current: 'currentColor',
+      white: '#ffffff',
+      // Page background, slightly cooler than #f6f7f9 in the mockup —
+      // it reads as "ambient surface" rather than the actual card.
+      page: '#f6f7f9',
+      // Card surface. Pure white card on cool gray page = the Linear
+      // signature "raised plane."
+      surface: '#ffffff',
+      // Near-black with a hint of blue. Better than pure #000 against
+      // the cool gray page.
+      ink: {
+        DEFAULT: '#0b0d10',
+        muted: '#6c707a',
+        faint: '#8a8e96',
       },
-      colors: {
-        // Warm off-white, never pure white. Pure white feels clinical;
-        // this feels like paper.
-        canvas: {
-          DEFAULT: '#fbf9f4',
-          dark: '#15110d',
-        },
-        // Near-black with a hint of warmth, not the harsh #000.
-        ink: {
-          DEFAULT: '#1a1816',
-          subtle: '#5a544e',
-          muted: '#8b8478',
-          dark: '#f0ece5',
-          'dark-subtle': '#a8a097',
-          'dark-muted': '#6b655c',
-        },
-        // The one accent. Deep burgundy. Confident, atypical.
-        accent: {
-          DEFAULT: '#7d2424',
-          dark: '#c54545',
-        },
-        // Subtle borders and dividers.
-        rule: {
-          DEFAULT: '#e8e2d6',
-          dark: '#2a2520',
-        },
+      // Hairline borders. Cool, not warm.
+      hairline: '#e4e6eb',
+      hairlineStrong: '#d1d5db',
+      // The accent. Linear's indigo. Used very sparingly — only for
+      // logo dot, focus rings, and the rare semantic accent.
+      accent: {
+        DEFAULT: '#5e6ad2',
+        soft: '#eef0fb',
+      },
+      danger: '#c4344b',
+    },
+    fontFamily: {
+      // Inter is the right call for this aesthetic. It's what Linear
+      // and Vercel actually use. Geist would also work — Inter is more
+      // ubiquitous and renders identically across platforms.
+      sans: [
+        '"Inter"',
+        'ui-sans-serif',
+        'system-ui',
+        '-apple-system',
+        'sans-serif',
+      ],
+      mono: [
+        '"JetBrains Mono"',
+        'ui-monospace',
+        'SFMono-Regular',
+        'monospace',
+      ],
+    },
+    extend: {
+      // Linear's signature "tight" letter-spacing on headings.
+      letterSpacing: {
+        tightish: '-0.01em',
+        tighter: '-0.02em',
+      },
+      borderRadius: {
+        // Slightly less round than Tailwind's defaults to match the
+        // dense, geometric tone.
+        sm: '4px',
+        DEFAULT: '6px',
+        md: '8px',
+        lg: '10px',
+        xl: '14px',
+      },
+      boxShadow: {
+        // Subtle, only on hover. Used on the card edges to lift them
+        // off the page surface slightly.
+        card: '0 1px 0 rgba(11, 13, 16, 0.04), 0 0 0 1px #e4e6eb',
+        cardHover: '0 1px 2px rgba(11, 13, 16, 0.06), 0 0 0 1px #d1d5db',
       },
       animation: {
-        'fade-in': 'fadeIn 800ms cubic-bezier(0.16, 1, 0.3, 1) both',
-        'slide-up': 'slideUp 700ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'fade-in': 'fadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'slide-up': 'slideUp 500ms cubic-bezier(0.16, 1, 0.3, 1) both',
       },
       keyframes: {
         fadeIn: {
@@ -54,7 +89,7 @@ const config: Config = {
           '100%': { opacity: '1' },
         },
         slideUp: {
-          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },

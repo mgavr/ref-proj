@@ -1,13 +1,18 @@
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
 import { ApiError } from '@refproj/api-client';
+import { Logo } from '@/components/logo';
 import { getServerApiClient } from '@/lib/api';
 import { LogoutButton } from './logout-button';
 
 /**
- * The signed-in user's account page. Server component: fetches /users/me
- * during the SSR pass via the shared API client. If the session is
- * missing or expired, redirects to /login.
+ * Account page — the authenticated counterpart to /login. Same card
+ * vocabulary: cool gray page, white surface, hairline borders, dense
+ * dark type. Avatar + name + email + system metadata, with a quiet
+ * sign-out link at the bottom.
+ *
+ * Server component: fetches /users/me via the shared API client, which
+ * forwards request cookies through Next.js's proxy to the API.
  */
 export default async function AccountPage(): Promise<React.JSX.Element> {
   const client = await getServerApiClient();
@@ -22,82 +27,97 @@ export default async function AccountPage(): Promise<React.JSX.Element> {
     throw err;
   }
 
-  const createdAt = new Date(user.createdAt);
-  const createdAtFormatted = createdAt.toLocaleDateString('en-US', {
+  const createdAt = new Date(user.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
   });
 
   return (
-    <div className="grid min-h-screen grid-rows-[1fr_auto] px-6">
-      <div className="mx-auto w-full max-w-md self-center animate-slide-up">
-        {/* Eyebrow — the small mono label that anchors the card */}
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted dark:text-ink-dark-muted">
-          authenticated account
-        </p>
-
-        {/* The serif heading is the moment of personality. */}
-        <h1 className="mt-3 font-display text-[clamp(2.75rem,7vw,4rem)] leading-[1] tracking-tight">
-          Welcome,
-          <br />
-          <span className="italic">{firstName(user.displayName)}</span>.
-        </h1>
-
-        <div className="mt-8 h-px bg-rule dark:bg-rule-dark" />
-
-        {/* Identity card */}
-        <div className="mt-8 flex items-start gap-5">
-          {user.avatarUrl ? (
-            <Image
-              src={user.avatarUrl}
-              alt={`${user.displayName}'s avatar`}
-              width={64}
-              height={64}
-              className="rounded-full border border-rule dark:border-rule-dark"
-              unoptimized
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-rule dark:border-rule-dark bg-canvas dark:bg-canvas-dark">
-              <span className="font-display text-2xl italic text-ink-subtle dark:text-ink-dark-subtle">
-                {initial(user.displayName)}
-              </span>
-            </div>
-          )}
-          <div className="min-w-0 flex-1 pt-1">
-            <p className="font-sans text-base font-medium truncate">
-              {user.displayName}
-            </p>
-            <p className="mt-0.5 font-mono text-xs text-ink-subtle dark:text-ink-dark-subtle truncate">
-              {user.email}
-            </p>
-          </div>
+    <div className="grid min-h-screen grid-rows-[1fr_auto] place-items-center px-6">
+      <div className="w-full max-w-[440px] animate-slide-up">
+        {/* Top brand row, separate from the card. Helps the card feel
+            like content rather than the whole world. */}
+        <div className="mb-5">
+          <Logo />
         </div>
 
-        {/* Metadata block — set in mono to underline that this is system
-            data, not user-supplied content. */}
-        <dl className="mt-10 space-y-3 font-mono text-xs">
-          <div className="flex justify-between gap-4 border-b border-rule/50 dark:border-rule-dark/50 pb-2">
-            <dt className="text-ink-muted dark:text-ink-dark-muted">id</dt>
-            <dd className="truncate text-right text-ink-subtle dark:text-ink-dark-subtle">
-              {user.id}
-            </dd>
+        <div className="rounded-lg border border-hairline bg-surface">
+          {/* Header row inside the card: avatar + name + email. */}
+          <div className="flex items-center gap-3.5 border-b border-hairline px-6 py-5">
+            {user.avatarUrl ? (
+              <Image
+                src={user.avatarUrl}
+                alt=""
+                width={44}
+                height={44}
+                className="rounded-full border border-hairline"
+                unoptimized
+              />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft">
+                <span className="text-[15px] font-medium text-accent">
+                  {initial(user.displayName)}
+                </span>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-medium leading-tight text-ink">
+                {user.displayName}
+              </p>
+              <p className="mt-0.5 truncate text-[12px] leading-tight text-ink-muted">
+                {user.email}
+              </p>
+            </div>
+            {/* Tiny status pill — establishes that this is an
+                authenticated session, in the dense system style. */}
+            <span className="flex items-center gap-1.5 rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-accent">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              Active
+            </span>
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink-muted dark:text-ink-dark-muted">member since</dt>
-            <dd className="text-right text-ink-subtle dark:text-ink-dark-subtle">
-              {createdAtFormatted}
-            </dd>
-          </div>
-        </dl>
 
-        <div className="mt-12">
-          <LogoutButton />
+          {/* Metadata rows. The whole table is mono — these are system
+              values, not user-supplied content. */}
+          <dl className="divide-y divide-hairline">
+            <div className="flex items-center justify-between px-6 py-3">
+              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-faint">
+                User ID
+              </dt>
+              <dd className="truncate pl-4 font-mono text-[12px] text-ink-muted">
+                {user.id}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3">
+              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-faint">
+                Member since
+              </dt>
+              <dd className="font-mono text-[12px] text-ink-muted">
+                {createdAt}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3">
+              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-faint">
+                Provider
+              </dt>
+              <dd className="font-mono text-[12px] text-ink-muted">google</dd>
+            </div>
+          </dl>
+
+          {/* Footer of the card with the sign-out action. Quiet button —
+              the destructive action shouldn't be the visual loudest
+              thing on the page. */}
+          <div className="flex items-center justify-between border-t border-hairline px-6 py-4">
+            <p className="text-[12px] text-ink-muted">
+              Welcome back, {firstName(user.displayName)}.
+            </p>
+            <LogoutButton />
+          </div>
         </div>
       </div>
 
-      <footer className="pb-6 font-mono text-[11px] tracking-wide text-ink-muted dark:text-ink-dark-muted text-center">
-        ref-proj &nbsp;·&nbsp; auth reference
+      <footer className="pb-5 font-mono text-[11px] tracking-wide text-ink-faint">
+        ref-proj · auth reference
       </footer>
     </div>
   );
