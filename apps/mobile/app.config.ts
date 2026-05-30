@@ -53,7 +53,17 @@ const config: ExpoConfig = {
   // iOS client ID) — registered via ios.infoPlist below.
   scheme: 'refproj',
   userInterfaceStyle: 'light',
-  newArchEnabled: true,
+  // newArchEnabled controls React Native's New Architecture (Fabric +
+  // TurboModules). It defaults to true in SDK 54 but ships some C++
+  // template signature changes that not all RN libraries have caught
+  // up with. react-native-svg@15.11.x at the time of writing fails
+  // to compile against RN 0.81's New Arch ShadowNode templates.
+  //
+  // Setting this to false uses the Legacy Architecture, which SDK 54
+  // still fully supports. Trade-off: no perf gains from Fabric, but
+  // also no compile errors. SDK 55 will drop legacy support; that's
+  // when we'd need to update libraries and flip this back to true.
+  newArchEnabled: false,
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.mgavr.refproj',
