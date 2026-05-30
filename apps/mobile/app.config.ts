@@ -83,8 +83,10 @@ const config: ExpoConfig = {
     googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '',
     googleIosClientId: iosClientId,
     eas: {
-      // EAS project ID — filled in automatically by `eas init`.
-      projectId: '',
+      // EAS project ID — created by `eas init` against your Expo
+      // account. Tied to https://expo.dev/accounts/mgavr/projects/ref-proj.
+      // If you fork this repo, run `eas init` to get your own ID.
+      projectId: '64a19315-da0e-4ebc-baee-8f166247413a',
     },
   },
 };
