@@ -34,6 +34,20 @@ const config: ExpoConfig = {
   slug: 'ref-proj',
   version: '0.0.0',
   orientation: 'portrait',
+  // EAS Updates configuration — added by `eas build` when it installed
+  // expo-updates. Lets us push JS-only updates to installed builds
+  // without rebuilding native code. The URL is the EAS project's
+  // update endpoint (keyed to our projectId).
+  updates: {
+    url: 'https://u.expo.dev/64a19315-da0e-4ebc-baee-8f166247413a',
+  },
+  // runtimeVersion: 'appVersion' means each version field above
+  // (currently '0.0.0') is a separate update channel. Native code
+  // changes bump this; JS-only changes ship as updates to existing
+  // installs of the current version.
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   // The app's own URL scheme — refproj:// opens our app via deep links.
   // Google's iOS OAuth redirect uses a different scheme (the reversed
   // iOS client ID) — registered via ios.infoPlist below.
