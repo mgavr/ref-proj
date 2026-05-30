@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { ApiError } from '@refproj/api-client';
@@ -24,26 +23,30 @@ WebBrowser.maybeCompleteAuthSession();
  * Auth state shared across the app. Exposes the current user (null if
  * signed out), a loading flag, and the sign-in / sign-out actions.
  *
- * Sign-in flow:
- *   1. expo-auth-session opens Google's consent in the in-app browser
- *      (in Expo Go we use Expo's auth proxy URL —
- *      https://auth.expo.io/@account/slug — as the redirect target,
- *      since Expo Go can't register custom schemes).
+ * Sign-in flow (dev/production build):
+ *   1. Google.useAuthRequest with iosClientId triggers the system
+ *      browser (in-app or Safari) with Google's consent screen. The
+ *      redirect URI is the reversed iOS client ID
+ *      (com.googleusercontent.apps.<id>://) — Google requires this
+ *      for iOS clients; expo-auth-session constructs it automatically
+ *      when iosClientId is provided.
  *   2. Google returns to us with an id_token in the response.
- *   3. We POST that id_token to /auth/mobile/verify, which returns a
- *      user + a token pair. The bearer transport stores the tokens.
- *   4. We set the user in state. Now /users/me works.
+ *   3. We POST that id_token to /auth/mobile/verify, which verifies
+ *      it against Google's JWKS (the API accepts either the Web
+ *      client ID or the iOS client ID as the `aud` claim — see
+ *      apps/api/src/auth/google-oauth.service.ts).
+ *   4. The API returns a user + token pair. We store the tokens in
+ *      iOS Keychain via expo-secure-store, set the user in state,
+ *      and the UI bounces to /account.
  *
  * Sign-out flow:
- *   1. Read the refresh token from SecureStore (the bearer transport
- *      handles auth, but logout needs the token explicitly in body).
- *   2. POST /auth/mobile/logout to revoke the family server-side.
+ *   1. Read the refresh token from SecureStore.
+ *   2. POST /auth/mobile/logout to revoke the token family server-side.
  *   3. Clear SecureStore.
  *   4. Clear local state.
  *
- * NOTE: The Expo auth proxy is deprecated; for production you'd move
- * to a Development Build with a custom URL scheme. For this reference
- * project we accept that constraint to stay on Expo Go.
+ * NOTE: This will NOT work in Expo Go since Expo Go can't register
+ * custom URL schemes. Run in a development build via EAS Build.
  */
 
 interface AuthContextValue {
@@ -60,10 +63,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// True when this bundle is running inside Expo Go (not a dev build, not
-// production). We use this to pick the OAuth redirect URI strategy.
-const isExpoGo = Constants.appOwnership === 'expo';
-
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   // `loading` is true until we know whether there's an existing session.
@@ -72,37 +71,38 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const clientId = (Constants.expoConfig?.extra as { googleClientId?: string } | undefined)
-    ?.googleClientId;
-
-  // Build the redirect URI. In Expo Go: the Expo proxy URL keyed to
-  // this app's Expo account + slug (looks like
-  // https://auth.expo.io/@user/ref-proj). In a dev/production build:
-  // the app's own scheme.
-  //
-  // NOTE: makeRedirectUri's useProxy option is removed in newer
-  // expo-auth-session versions, but the underlying behavior is still
-  // available via the `projectNameForProxy` option. Detect at runtime.
-  const redirectUri = AuthSession.makeRedirectUri({
-    // In Expo Go we want the proxy URL. The `native` option is what
-    // older versions called useProxy.
-    scheme: 'refproj',
-    // Newer expo-auth-session uses the slug for the proxy URL when
-    // present. The slug from app.config.ts is 'ref-proj'.
-    preferLocalhost: false,
-  });
+  const extra = Constants.expoConfig?.extra as
+    | { googleClientId?: string; googleIosClientId?: string }
+    | undefined;
+  const iosClientId = extra?.googleIosClientId;
+  // Web client ID kept here for completeness (used by Android and Web,
+  // and for the iOS client's serverClientId param if we add server-side
+  // id_token verification refinements later).
+  const webClientId = extra?.googleClientId;
 
   // useAuthRequest builds the OAuth state + PKCE pair and returns a
   // promptAsync() we call to open the browser. Re-runs only when the
-  // clientId changes (it shouldn't, in practice).
+  // clientIds change (they shouldn't, in practice).
+  //
+  // The 'providers/google' wrapper handles the redirect URI plumbing
+  // automatically based on which clientId is provided per platform:
+  // - iosClientId  → com.googleusercontent.apps.<id>:// (the reversed
+  //   iOS client ID format Google requires for iOS OAuth clients)
+  // - androidClientId → app's scheme:// (Android uses a different
+  //   model than iOS; not configured here yet)
+  // - clientId (Web) → used as fallback and as the audience claim
+  //   for server-side ID token verification
   const [, response, promptAsync] = Google.useAuthRequest({
-    clientId,
+    iosClientId,
+    // Fall back to the Web client ID if iosClientId is not set —
+    // shouldn't happen in practice with proper env config, but
+    // graceful fallback for misconfigured dev builds.
+    clientId: webClientId,
     // Force the response to be an id_token rather than an access_token —
     // the API only needs the id_token to verify the user's identity
     // against Google's JWKS.
     responseType: 'id_token',
     scopes: ['openid', 'email', 'profile'],
-    redirectUri,
   });
 
   // Bootstrap: on mount, see if we already have tokens. If so, try
@@ -168,14 +168,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const signIn = useCallback(async () => {
     setError(null);
-    if (!clientId) {
+    if (!iosClientId && !webClientId) {
       setError(
-        'Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID in apps/mobile/.env.',
+        'Google client ID not configured. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in apps/mobile/.env.',
       );
       return;
     }
     await promptAsync();
-  }, [promptAsync, clientId]);
+  }, [promptAsync, iosClientId, webClientId]);
 
   const signOut = useCallback(async () => {
     setError(null);

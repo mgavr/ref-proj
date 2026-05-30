@@ -113,11 +113,21 @@ export class GoogleOAuthService {
    * the verified claims.
    */
   async verifyIdToken(idToken: string): Promise<GoogleUserInfo> {
+    // Accept ID tokens issued for either the Web client (used by the
+    // server-side web OAuth flow) or the iOS client (used by native
+    // mobile dev/production builds with a custom URL scheme). The
+    // signature check is the same — both come from Google's JWKS —
+    // but the `aud` claim differs per client.
+    const audience: string[] = [this.env.GOOGLE_CLIENT_ID];
+    if (this.env.GOOGLE_IOS_CLIENT_ID) {
+      audience.push(this.env.GOOGLE_IOS_CLIENT_ID);
+    }
+
     let verified;
     try {
       verified = await jwtVerify(idToken, this.jwks, {
         issuer: [GOOGLE_ISSUER, 'accounts.google.com'],
-        audience: this.env.GOOGLE_CLIENT_ID,
+        audience,
       });
     } catch (err) {
       throw oauthProviderError(

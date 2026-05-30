@@ -1,194 +1,239 @@
-# Step 7 — Mobile App Setup (Expo Go on iPhone)
+# Step 7 — Mobile App (iPhone Dev Build via EAS)
 
-The Expo mobile app talks to the same production API as the web app
-(at `https://ref-proj-web.vercel.app/api/v1`). For this reference
-project we use Expo Go with the (deprecated) Expo auth proxy, which
-keeps the setup minimal — no native build needed.
+The mobile app ships as an EAS-built development build — not via
+Expo Go. Expo Go can't register custom URL schemes, which are
+required by Google's iOS OAuth client.
 
-## What you'll get
+The dev build is a custom version of your app, installed once on
+your phone, that connects to Metro just like Expo Go did but with
+your own scheme registered for OAuth redirects.
 
-- iPhone app running through Expo Go
-- Same Linear-leaning aesthetic as the web frontend, adapted for touch
-- Full auth flow: tap "Continue with Google" → Google consent →
-  `/auth/mobile/verify` → tokens stored in iOS Keychain → account screen
-- Auto-refresh on 401 (via the bearer transport)
+## Total time
 
-## Total time: ~15 minutes
+- First-time setup: ~45 minutes (Google iOS client, EAS config,
+  cloud build wait)
+- Subsequent rebuilds: only needed when native dependencies change.
+  JS code reloads instantly via Metro, like Expo Go.
 
----
+## Architecture overview
 
-## 1. Set up an Expo account
-
-The Expo auth proxy URL is keyed to an Expo account name, so you need
-one even with Expo Go.
-
-1. Go to https://expo.dev/signup, create an account. Free.
-2. In your Codespace terminal:
-   ```bash
-   pnpm dlx expo login
-   ```
-   Enter your Expo username and password. (Or use SSO; the CLI walks
-   you through it.)
-3. Verify:
-   ```bash
-   pnpm dlx expo whoami
-   ```
-   Should print your Expo username.
-
-The proxy URL will be `https://auth.expo.io/@<your-username>/ref-proj`.
-Note that exact URL — you'll need it in step 3.
-
-**Report back:** Your Expo username (so I can confirm the proxy URL).
+```
+iPhone (dev build)              ┌── /api/v1/* ──────────────────┐
+                                ▼                                │
+[Continue with Google] ──▶ Google OAuth ──▶ refproj://auth ──▶ App
+                          (iOS Client)      (custom scheme)
+                                                                 │
+                                                  POST id_token  ▼
+                                              /auth/mobile/verify
+                                                                 │
+                                                ▼─── access + refresh tokens
+                                          stored in iOS Keychain
+```
 
 ---
 
-## 2. Install Expo Go on your iPhone
+## Prerequisites
 
-1. App Store → search **Expo Go** → install.
-2. Open it once. You can sign in with your Expo account if you want
-   (makes the dev experience smoother), but it's not required.
-
----
-
-## 3. Add the Expo proxy URL to your Google OAuth client
-
-Same `ref-proj-prod` project from the web deploy. Same OAuth client
-(`ref-proj web (prod)`). We're adding one more authorized redirect URI.
-
-1. Open https://console.cloud.google.com/apis/credentials in the
-   `ref-proj-prod` project.
-2. Click into `ref-proj web (prod)`.
-3. Under **Authorized redirect URIs**, click **+ Add URI** and enter:
-   ```
-   https://auth.expo.io/@<your-expo-username>/ref-proj
-   ```
-   Replace `<your-expo-username>` with whatever `expo whoami` printed.
-4. Click **Save**. Wait a couple of minutes for Google to propagate.
-
-**Report back:** "Added Expo proxy URL to Google."
+- Step 7's existing setup done: `EXPO_TOKEN` set in Codespace secrets,
+  Expo Go installed as a reference (we won't use it for OAuth but
+  having it around is useful)
+- Web auth flow works in production (step 6/8 done)
 
 ---
 
-## 4. Set the mobile env vars
+## 1. Create the iOS OAuth client in Google Console
+
+If you've already done this (Saturday morning's step), skip to step 2.
+
+1. Open https://console.cloud.google.com/apis/credentials in your
+   `ref-proj-prod` project (top-bar project switcher).
+2. Click **+ Create credentials → OAuth client ID**.
+3. **Application type:** select **iOS** (not "Web application").
+4. **Name:** `ref-proj iOS (prod)`.
+5. **Bundle ID:** `com.mgavr.refproj` — must match exactly what's
+   in `apps/mobile/app.config.ts` under `ios.bundleIdentifier`.
+6. Leave App Store ID empty.
+7. Leave Team ID empty.
+8. **Create**. Note the Client ID — different from your Web one.
+   Save it. There is no Client Secret for iOS clients.
+
+---
+
+## 2. Update the API to accept the iOS client ID
+
+The API (DigitalOcean) needs to know about the iOS client ID so it
+can verify id_tokens issued by it. Already set up via the
+`GOOGLE_IOS_CLIENT_ID` env var.
+
+1. Open the DigitalOcean app → **api** component → **Settings** →
+   **Environment Variables** → **Edit**.
+2. Click **+ Add variable**.
+3. Key: `GOOGLE_IOS_CLIENT_ID`
+4. Value: (paste your iOS Client ID from step 1)
+5. Scope: **Run time**
+6. Encrypt: yes
+7. **Save**. DO redeploys automatically (~3 min).
+
+When it's green, the API will accept id_tokens from either client.
+
+---
+
+## 3. Set the mobile env vars
 
 In your Codespace:
 
 ```bash
-cd /workspaces/ref-proj/apps/mobile
-cp .env.example .env
+cd /workspaces/ref-proj
+cp apps/mobile/.env.example apps/mobile/.env
 ```
 
-Edit `apps/mobile/.env` and fill in:
+Edit `apps/mobile/.env`:
 
 ```
 EXPO_PUBLIC_API_BASE_URL=https://ref-proj-web.vercel.app/api/v1
-EXPO_PUBLIC_GOOGLE_CLIENT_ID=<your-google-web-client-id-from-prod-project>
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=<your-prod-Web-client-id>
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<your-prod-iOS-client-id>
 ```
-
-The Client ID is the same one you set as `GOOGLE_CLIENT_ID` in DO
-during section 5 of the web deploy. Looks like
-`670220272975-lj7uj8o7p47r5fd759rhss7nqmlht5bo.apps.googleusercontent.com`.
 
 ---
 
-## 5. Start the Expo dev server with tunnel mode
+## 4. Set up EAS Build
 
-In the Codespace terminal:
+Install eas-cli and initialize the project:
+
+```bash
+pnpm install
+pnpm dlx eas-cli login    # uses your EXPO_TOKEN, should auto-pass
+pnpm --filter @refproj/mobile exec eas init
+```
+
+`eas init` will:
+- Link this project to your Expo account
+- Write a `projectId` into `app.config.ts` extra.eas section
+- Set up the EAS project for builds
+
+---
+
+## 5. Kick off the dev build
+
+```bash
+pnpm --filter @refproj/mobile exec eas build --profile development --platform ios
+```
+
+You'll be prompted for a few things:
+
+- **"Generate a new Apple provisioning profile?"** → Yes (let EAS
+  handle Apple stuff for you; no Apple Developer membership needed
+  for development builds with this method)
+- **"Apple ID"** → your Apple ID email (same one as your iPhone)
+- **"App Store Connect API key"** → No (skip; just for App Store
+  submission)
+- **"Distribution certificate"** → Generate a new one
+- **"Push notification key"** → Skip
+- **"Provisioning profile"** → Generate
+
+EAS will then run the build on their cloud servers. Expect ~15-25
+minutes on the free tier queue.
+
+While it builds, you can:
+- Browse to `https://expo.dev/accounts/mgavr/projects/ref-proj/builds`
+  to watch progress
+- Or watch the terminal — EAS streams updates
+
+When it finishes, EAS prints a QR code and a build URL.
+
+---
+
+## 6. Install the dev build on your iPhone
+
+1. **Open the build URL on your iPhone in Safari.** (Don't try to
+   scan the QR with Camera — same issue as before with `exp://`.)
+2. Safari shows a page with an "Install" button.
+3. Tap Install.
+4. Go to **Settings → General → VPN & Device Management** on your
+   iPhone. Trust the developer certificate that just appeared.
+5. Open the newly installed **ref-proj** app from your home screen.
+6. First launch will say "Looking for development servers". This
+   means the app is ready to connect to a Metro instance.
+
+---
+
+## 7. Start the Metro dev server
 
 ```bash
 cd /workspaces/ref-proj
-# IMPORTANT: align all SDK 54 dependencies to the exact versions
-# Expo recommends for this SDK release. Run this after pulling and
-# after any Expo SDK version bump.
-pnpm install
-pnpm --filter @refproj/mobile exec expo install --fix
-# Now start with tunnel mode (--tunnel because the Codespace network
-# isn't reachable from your phone).
 pnpm --filter @refproj/mobile dev -- --tunnel
 ```
 
-When it's ready you'll see a QR code in the terminal plus a URL like
-`exp://blah-blah-anonymous.tunnel.expo.dev:80`.
+(`--tunnel` because the Codespace network isn't reachable from your
+phone directly.)
+
+When the dev server is up, it appears in your installed dev build
+under "Development servers" (the dev build is signed into your
+Expo account via the build process, so the auto-discover works).
+Tap it to load the JS bundle.
 
 ---
 
-## 6. Open the app on your phone
+## 8. Sign in
 
-1. Open the **Camera** app on your iPhone.
-2. Point it at the QR code in the terminal.
-3. A notification appears: "Open in Expo Go" — tap it.
-4. Expo Go opens, loads the bundle (~30 seconds first time on tunnel),
-   shows the login screen.
+Open the app. Tap **Continue with Google**.
 
----
+- The system browser (or in-app Safari View Controller) opens
+  Google's consent screen.
+- Choose your account, approve.
+- Browser closes, lands you back in the app on the account screen.
 
-## 7. Sign in
-
-Tap **Continue with Google**. The in-app browser opens with Google's
-consent screen.
-
-- First time: Google shows the consent dialog. Approve.
-- Subsequent times: usually auto-completes without prompts.
-
-The browser closes, and you should land on the account screen with
-your avatar, name, email, the user ID, member-since date, "Active"
-pill, and a Sign out button.
+Done. Your tokens are in iOS Keychain. Reload the app — it stays
+signed in. Auto-refresh on 401 works via the bearer transport.
 
 ---
 
 ## Likely failure modes
 
-### "Invalid redirect URI" from Google
+### EAS build fails
 
-The proxy URL you registered in step 3 doesn't exactly match what
-expo-auth-session is generating. Likely causes:
+- **"Apple ID invalid"**: typo in your Apple ID, or two-factor needs
+  approval. Retry; EAS handles 2FA prompts.
+- **"Bundle identifier already in use"**: someone else owns
+  `com.mgavr.refproj`. Change it in `app.config.ts` and the iOS
+  OAuth client to a unique identifier (e.g.
+  `com.yourgithub.refproj`).
+- **Build queue full**: free tier can have multi-hour queues during
+  peak times. Wait, or upgrade to paid for priority.
 
-- Wrong Expo username in the URL (look at `expo whoami`)
-- Wrong slug — must be `ref-proj` (from `app.config.ts`)
-- Forgot to save in Google Console
+### App installs but won't open
 
-### "Access blocked: this app's request is invalid"
+- iPhone needs to trust the certificate: Settings → General → VPN
+  & Device Management → tap your name → Trust.
 
-Same family. Double-check the URI exactly.
+### "No matching URL scheme" at sign-in
 
-### Bundle won't load on phone
+- The reversed iOS client ID isn't registered as a URL scheme in
+  Info.plist. Add it to `app.config.ts` ios.bundleIdentifier (yes,
+  add to URL schemes via a config plugin). Rebuild via EAS.
 
-- Tunnel can be slow. Wait up to a minute on first load.
-- If it times out, try without tunnel from a real machine where your
-  phone is on the same Wi-Fi:
-  ```bash
-  pnpm --filter @refproj/mobile dev
-  ```
-  (Won't work from Codespace, since your phone isn't on the Codespace
-  network — but if you have a local checkout, this is faster.)
+### "redirect_uri_mismatch"
 
-### App opens but shows "Network request failed"
+- The OAuth redirect URI doesn't match what Google expects. iOS
+  clients use `com.googleusercontent.apps.<id>://` automatically;
+  Google generates this for you when you set up the iOS client. No
+  manual config in Google Console.
 
-Check `EXPO_PUBLIC_API_BASE_URL` in `apps/mobile/.env`. Confirm the
-URL is reachable from your phone's browser:
-`https://ref-proj-web.vercel.app/api/v1/auth/_debug` should show the
-debug page.
+### Sign-in succeeds but app crashes on /account
 
-### "Sign-in failed: ..." with a specific message
-
-That's the API talking. Common ones:
-- `OAUTH_INVALID_TOKEN` — the Google ID token was rejected (probably
-  expired in the round-trip; retry)
-- `OAUTH_PROVIDER_MISMATCH` — you signed in with a different Google
-  account than the one linked to this user; sign out from Google in
-  the in-app browser and try again
+- Most likely an API error. Check Metro logs in your terminal.
+- Confirm `GOOGLE_IOS_CLIENT_ID` is set in DO env vars (step 2).
 
 ---
 
-## What's *not* set up
+## What's not set up
 
-- **No native build / EAS.** This is Expo Go only. You can't install
-  this on a phone outside Expo Go.
-- **No App Store / TestFlight pipeline.** Future work.
-- **No Android.** The same code works on Android too (Google OAuth
-  config aside), but we haven't built/tested it.
-- **No Apple Sign In.** The reference is Google-only.
-
-If/when ref-proj inspires a real product, the EAS Build path is where
-you go — and the auth code we have here barely changes (just swap the
-redirect URI logic in `lib/auth.tsx` for a custom scheme).
+- **No Android.** Same code works on Android too, but Google's
+  Android OAuth requires SHA-1 certificate fingerprints. Future work.
+- **No App Store / TestFlight pipeline.** This is a dev build for
+  testing only. Future work uses `eas build --profile production` +
+  `eas submit`.
+- **No automatic background token refresh.** Tokens refresh
+  on-demand when the API returns 401. Good enough for our reference
+  app.

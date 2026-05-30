@@ -46,8 +46,20 @@ export const EnvSchema = z.object({
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(2592000),    // 30 days
 
   // ---- Google OAuth ---------------------------------------------------
+  // GOOGLE_CLIENT_ID is the Web OAuth client. It's used for the web
+  // login flow (server-side authorization-code exchange with a secret)
+  // AND as one of the accepted audiences when verifying mobile ID
+  // tokens (since the original Expo Go path used the Web client).
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
+  // GOOGLE_IOS_CLIENT_ID is the iOS OAuth client. Native apps using a
+  // custom URL scheme can't use the Web client (Google doesn't allow
+  // custom-scheme redirects on Web clients), so we register a separate
+  // iOS client with the app's bundle ID. ID tokens issued for the iOS
+  // client have it as their `aud` claim, so verifyIdToken accepts
+  // either client ID. Optional: if unset, only Web-client tokens are
+  // accepted (useful when iOS isn't deployed yet).
+  GOOGLE_IOS_CLIENT_ID: z.string().min(1).optional(),
 
   // ---- Dev only -------------------------------------------------------
   /**
